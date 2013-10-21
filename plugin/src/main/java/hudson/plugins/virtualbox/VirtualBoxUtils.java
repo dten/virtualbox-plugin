@@ -1,5 +1,9 @@
 package hudson.plugins.virtualbox;
 
+
+import com.sun.xml.ws.commons.virtualbox_3_1.IVirtualBox;
+import com.sun.xml.ws.commons.virtualbox_3_1.IWebsessionManager;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,16 +14,20 @@ import java.util.Map;
 public final class VirtualBoxUtils {
 
   // public methods
-  public static long startVm(VirtualBoxMachine machine, String virtualMachineType, VirtualBoxLogger log) {
-    return getVboxControl(machine.getHost(), log).startVm(machine, virtualMachineType, log);
+  public static long startVm(VirtualBoxMachine machine, String snapshotName, String virtualMachineType, VirtualBoxLogger log) {
+    return getVboxControl(machine.getHost(), log).startVm(machine, snapshotName, virtualMachineType, log);
   }
 
-  public static long stopVm(VirtualBoxMachine machine, String virtualMachineStopMode, VirtualBoxLogger log) {
-    return getVboxControl(machine.getHost(), log).stopVm(machine, virtualMachineStopMode, log);
+  public static long stopVm(VirtualBoxMachine machine, String snapshotName, String virtualMachineStopMode, VirtualBoxLogger log) {
+    return getVboxControl(machine.getHost(), log).stopVm(machine, snapshotName, virtualMachineStopMode, log);
   }
 
   public static List<VirtualBoxMachine> getMachines(VirtualBoxCloud host, VirtualBoxLogger log) {
     return getVboxControl(host, log).getMachines(host, log);
+  }
+
+  public static String[] getSnapshots(VirtualBoxCloud host, String virtualMachineName, VirtualBoxSystemLog log) {
+    return getVboxControl(host, log).getSnapshots(virtualMachineName, log);
   }
 
   public static String getMacAddress(VirtualBoxMachine machine, VirtualBoxLogger log) {
@@ -27,7 +35,7 @@ public final class VirtualBoxUtils {
   }
 
   public static void disconnectAll() {
-    for (Map.Entry<String, VirtualBoxControl> entry : vboxControls.entrySet()) {
+    for (Map.Entry<String, VirtualBoxControl> entry: vboxControls.entrySet()) {
       entry.getValue().disconnect();
     }
     vboxControls.clear();
@@ -62,33 +70,19 @@ public final class VirtualBoxUtils {
     VirtualBoxControl vboxControl = null;
 
     log.logInfo("Trying to connect to " + host.getUrl() + ", user " + host.getUsername());
-    String version = null;
-
-    try {
-      org.virtualbox_5_1.VirtualBoxManager manager = org.virtualbox_5_1.VirtualBoxManager.createInstance(null);
-      manager.connect(host.getUrl(), host.getUsername(), host.getPassword().getPlainText());
-      version = manager.getVBox().getVersion();
-      manager.disconnect();
-    } catch (Exception e) { 
-      // fallback to old method
-      com.sun.xml.ws.commons.virtualbox_3_1.IWebsessionManager manager = new com.sun.xml.ws.commons.virtualbox_3_1.IWebsessionManager(host.getUrl());
-      com.sun.xml.ws.commons.virtualbox_3_1.IVirtualBox vbox = manager.logon(host.getUsername(), host.getPassword().getPlainText());
-      version = vbox.getVersion();
-      manager.disconnect(vbox);
-    }
+    IWebsessionManager manager = new IWebsessionManager(host.getUrl());
+    IVirtualBox vbox = manager.logon(host.getUsername(), host.getPassword());
+    String version = vbox.getVersion();
+    manager.disconnect(vbox);
 
     log.logInfo("Creating connection to VirtualBox version " + version);
-    if (version.startsWith("5.1")) {
-      vboxControl = new VirtualBoxControlV51(host.getUrl(), host.getUsername(), host.getPassword());
-    } else if (version.startsWith("5.0")) {
-      vboxControl = new VirtualBoxControlV50(host.getUrl(), host.getUsername(), host.getPassword());
-    } else if (version.startsWith("4.3")) {
-      vboxControl = new VirtualBoxControlV43(host.getUrl(), host.getUsername(), host.getPassword());
-    } else if (version.startsWith("4.2")) {
-      vboxControl = new VirtualBoxControlV42(host.getUrl(), host.getUsername(), host.getPassword());
-    } else if (version.startsWith("4.1")) {
-      vboxControl = new VirtualBoxControlV41(host.getUrl(), host.getUsername(), host.getPassword());
-    } else if (version.startsWith("4.0")) {
+      if (version.startsWith("4.3")) {
+       vboxControl = new VirtualBoxControlV43(host.getUrl(), host.getUsername(), host.getPassword());
+      } else if (version.startsWith("4.2")) {
+       vboxControl = new VirtualBoxControlV42(host.getUrl(), host.getUsername(), host.getPassword());
+      } else if (version.startsWith("4.1")) {
+       vboxControl = new VirtualBoxControlV41(host.getUrl(), host.getUsername(), host.getPassword());
+      } else if (version.startsWith("4.0")) {
       vboxControl = new VirtualBoxControlV40(host.getUrl(), host.getUsername(), host.getPassword());
     } else if (version.startsWith("3.")) {
       vboxControl = new VirtualBoxControlV31(host.getUrl(), host.getUsername(), host.getPassword());
@@ -100,4 +94,5 @@ public final class VirtualBoxUtils {
     log.logInfo("Connected to VirtualBox version " + version + " on host " + host.getUrl());
     return vboxControl;
   }
+
 }

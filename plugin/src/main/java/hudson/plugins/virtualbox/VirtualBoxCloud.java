@@ -8,12 +8,13 @@ import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
 import hudson.util.FormValidation;
 import hudson.util.Scrambler;
-import hudson.util.Secret;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -28,7 +29,7 @@ public class VirtualBoxCloud extends Cloud {
 
   private final String url;
   private final String username;
-  private final Secret password;
+  private final String password;
 
   /**
    * Lazily computed list of virtual machines from this host.
@@ -36,11 +37,11 @@ public class VirtualBoxCloud extends Cloud {
   private transient List<VirtualBoxMachine> virtualBoxMachines = null;
 
   @DataBoundConstructor
-  public VirtualBoxCloud(String displayName, String url, String username, Secret password) {
+  public VirtualBoxCloud(String displayName, String url, String username, String password) {
     super(displayName);
     this.url = url;
     this.username = username;
-    this.password = password;
+    this.password = Scrambler.scramble(Util.fixEmptyAndTrim(password));
   }
 
   @Override
@@ -70,6 +71,10 @@ public class VirtualBoxCloud extends Cloud {
     return null;
   }
 
+  public String[] getSnapshots(String virtualMachineName) {
+      return VirtualBoxUtils.getSnapshots(this, virtualMachineName, new VirtualBoxSystemLog(LOG, "[VirtualBox] "));
+  }
+
   @Extension
   public static class DescriptorImpl extends Descriptor<Cloud> {
     @Override
@@ -84,7 +89,7 @@ public class VirtualBoxCloud extends Cloud {
     public FormValidation doTestConnection(
         @QueryParameter String url,
         @QueryParameter String username,
-        @QueryParameter Secret password
+        @QueryParameter String password
     ) {
       LOG.log(Level.INFO, "Testing connection to {0} with username {1}", new Object[]{url, username});
       try {
@@ -105,8 +110,8 @@ public class VirtualBoxCloud extends Cloud {
     return username;
   }
 
-  public Secret getPassword() {
-    return password;
+  public String getPassword() {
+    return Scrambler.descramble(password);
   }
 
   @Override
@@ -118,4 +123,5 @@ public class VirtualBoxCloud extends Cloud {
     sb.append('}');
     return sb.toString();
   }
+
 }
