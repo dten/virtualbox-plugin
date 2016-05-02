@@ -1,18 +1,40 @@
 package hudson.plugins.virtualbox;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
+
 import hudson.util.Secret;
-import org.jvnet.hudson.test.HudsonTestCase;
-//TODO: Use instead: http://javadoc.jenkins-ci.org/org/jvnet/hudson/test/JenkinsRule.html
 
 /**
  * @author Evgeny Mandrikov
  */
-public class VirtualBoxCloudTest extends HudsonTestCase {
+public class VirtualBoxCloudTest {
+
+  @Rule
+  public JenkinsRule j = new JenkinsRule();
+
+  @Test
+  public void testPluginStart() {
+    assertTrue(j.jenkins.getPluginManager().getPlugin("virtualbox").isActive());
+  }
+
+  @Test
   public void testConfigRoundtrip() throws Exception {
     VirtualBoxCloud orig = new VirtualBoxCloud("Test", "http://localhost:18083", "godin", Secret.fromString("12345"));
-    hudson.clouds.add(orig);
-    submit(createWebClient().goTo("configure").getFormByName("config"));
+    j.jenkins.clouds.add(orig);
 
-    assertEqualBeans(orig, hudson.clouds.iterator().next(), "name,url,username,password");
+    j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
+
+    VirtualBoxCloud after = (VirtualBoxCloud) j.jenkins.clouds.iterator().next();
+    assertNotNull(after);
+    assertEquals("Test", after.getDisplayName());
+    assertEquals("http://localhost:18083", after.getUrl());
+    assertEquals("godin", after.getUsername());
+    assertEquals("12345", after.getPassword().getPlainText());
   }
 }
