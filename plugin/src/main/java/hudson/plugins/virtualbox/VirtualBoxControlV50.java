@@ -24,7 +24,7 @@ public final class VirtualBoxControlV50 implements VirtualBoxControl {
     private final IVirtualBox vbox;
 
     public VirtualBoxControlV50(final String hostUrl, final String userName, final Secret password) {
-        logInfo("New instance of VirtualBoxControlV43, connecting to manager ...");
+        logInfo("New instance of VirtualBoxControlV50, connecting to manager ...");
         manager = VirtualBoxManager.createInstance(null);
         manager.connect(hostUrl, userName, password.getPlainText());
         vbox = manager.getVBox();
