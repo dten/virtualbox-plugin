@@ -1,9 +1,11 @@
 package hudson.plugins.virtualbox;
 
 import com.sun.xml.ws.commons.virtualbox_3_1.*;
-import hudson.util.Secret;
+
 import java.util.ArrayList;
 import java.util.List;
+
+import hudson.util.Secret;
 
 /**
  * @author Evgeny Mandrikov
@@ -59,7 +61,7 @@ public final class VirtualBoxControlV31 implements VirtualBoxControl {
    * @param host VirtualBox host
    * @return list of virtual machines installed on specified host
    */
-  public synchronized List<VirtualBoxMachine> getMachines(VirtualBoxCloud host, VirtualBoxLogger log) {
+  public synchronized List<VirtualBoxMachine> getMachines(VirtualBoxCloud host) {
     List<VirtualBoxMachine> result = new ArrayList<VirtualBoxMachine>();
     ConnectionHolder holder = connect(hostUrl, userName, password);
     for (IMachine machine : holder.vbox.getMachines()) {
@@ -69,6 +71,10 @@ public final class VirtualBoxControlV31 implements VirtualBoxControl {
     return result;
   }
 
+  public String[] getSnapshots(String virtualMachineName) {
+      return new String[0];
+  }
+
   /**
    * Starts specified VirtualBox virtual machine.
    *
@@ -76,7 +82,7 @@ public final class VirtualBoxControlV31 implements VirtualBoxControl {
    * @param type      session type (can be headless, vrdp, gui, sdl)
    * @return result code
    */
-  public synchronized long startVm(VirtualBoxMachine vbMachine, String type, VirtualBoxLogger log) {
+  public synchronized long startVm(VirtualBoxMachine vbMachine, String snapshotName, String type) {
     ConnectionHolder holder = connect(hostUrl, userName, password);
     IMachine machine = holder.vbox.findMachine(vbMachine.getName());
     if (org.virtualbox_3_1.MachineState.RUNNING == machine.getState()) {
@@ -104,7 +110,7 @@ public final class VirtualBoxControlV31 implements VirtualBoxControl {
    * @param vbMachine virtual machine to stop
    * @return result code
    */
-  public synchronized long stopVm(VirtualBoxMachine vbMachine, String stopMode, VirtualBoxLogger log) {
+  public synchronized long stopVm(VirtualBoxMachine vbMachine, String snapshotName, String stopMode) {
     ConnectionHolder holder = connect(hostUrl, userName, password);
     IMachine machine = holder.vbox.findMachine(vbMachine.getName());
     if (org.virtualbox_3_1.MachineState.RUNNING != machine.getState()) {
@@ -126,11 +132,12 @@ public final class VirtualBoxControlV31 implements VirtualBoxControl {
    * @param vbMachine virtual machine
    * @return MAC Address of specified virtual machine
    */
-  public synchronized String getMacAddress(VirtualBoxMachine vbMachine, VirtualBoxLogger log) {
+  public synchronized String getMacAddress(VirtualBoxMachine vbMachine) {
     ConnectionHolder holder = connect(hostUrl, userName, password);
     IMachine machine = holder.vbox.findMachine(vbMachine.getName());
     String macAddress = machine.getNetworkAdapter(0L).getMACAddress();
     holder.disconnect();
     return macAddress;
   }
+
 }

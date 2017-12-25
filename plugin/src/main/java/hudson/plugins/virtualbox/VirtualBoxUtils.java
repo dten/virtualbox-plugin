@@ -1,8 +1,9 @@
 package hudson.plugins.virtualbox;
 
-import java.util.HashMap;
+import static hudson.plugins.virtualbox.VirtualBoxLogger.logError;
+import static hudson.plugins.virtualbox.VirtualBoxLogger.logInfo;
+
 import java.util.List;
-import java.util.Map;
 
 /**
  * @author Mihai Serban
@@ -10,58 +11,67 @@ import java.util.Map;
 public final class VirtualBoxUtils {
 
   // public methods
-  public static long startVm(VirtualBoxMachine machine, String virtualMachineType, VirtualBoxLogger log) {
-    return getVboxControl(machine.getHost(), log).startVm(machine, virtualMachineType, log);
+  public static long startVm(final VirtualBoxMachine machine, final String snapshotName, final String virtualMachineType) {
+    return executeWithVboxControl(machine.getHost(), new VBoxControlCallback<Long>() {
+      public Long doWithVboxControl(VirtualBoxControl vboxControl) {
+        return vboxControl.startVm(machine, snapshotName, virtualMachineType);
+      }
+    });
   }
 
-  public static long stopVm(VirtualBoxMachine machine, String virtualMachineStopMode, VirtualBoxLogger log) {
-    return getVboxControl(machine.getHost(), log).stopVm(machine, virtualMachineStopMode, log);
+  public static long stopVm(final VirtualBoxMachine machine, final String snapshotName, final String virtualMachineStopMode) {
+    return executeWithVboxControl(machine.getHost(), new VBoxControlCallback<Long>() {
+      public Long doWithVboxControl(VirtualBoxControl vboxControl) {
+        return vboxControl.stopVm(machine, snapshotName, virtualMachineStopMode);
+      }
+    });
   }
 
-  public static List<VirtualBoxMachine> getMachines(VirtualBoxCloud host, VirtualBoxLogger log) {
-    return getVboxControl(host, log).getMachines(host, log);
+  public static List<VirtualBoxMachine> getMachines(final VirtualBoxCloud host) {
+    return executeWithVboxControl(host, new VBoxControlCallback<List<VirtualBoxMachine>>() {
+      public List<VirtualBoxMachine> doWithVboxControl(VirtualBoxControl vboxControl) {
+        return vboxControl.getMachines(host);
+      }
+    });
   }
 
-  public static String getMacAddress(VirtualBoxMachine machine, VirtualBoxLogger log) {
-    return getVboxControl(machine.getHost(), log).getMacAddress(machine, log);
+  public static String[] getSnapshots(final VirtualBoxCloud host, final String virtualMachineName) {
+    return executeWithVboxControl(host, new VBoxControlCallback<String[]>() {
+      public String[] doWithVboxControl(VirtualBoxControl vboxControl) {
+        return vboxControl.getSnapshots(virtualMachineName);
+      }
+    });
   }
 
-  public static void disconnectAll() {
-    for (Map.Entry<String, VirtualBoxControl> entry : vboxControls.entrySet()) {
-      entry.getValue().disconnect();
-    }
-    vboxControls.clear();
+  public static String getMacAddress(final VirtualBoxMachine machine) {
+    return executeWithVboxControl(machine.getHost(), new VBoxControlCallback<String>() {
+      public String doWithVboxControl(VirtualBoxControl vboxControl) {
+        return vboxControl.getMacAddress(machine);
+      }
+    });
   }
 
   // private methods
   private VirtualBoxUtils() {
   }
 
-  /**
-   * Cache connections to VirtualBox hosts
-   * TODO: keep the connections alive with a noop
-   */
-  private static HashMap<String, VirtualBoxControl> vboxControls = new HashMap<String, VirtualBoxControl>();
-
-  private synchronized static VirtualBoxControl getVboxControl(VirtualBoxCloud host, VirtualBoxLogger log) {
-    VirtualBoxControl vboxControl = (VirtualBoxControl)vboxControls.get(host.toString());
-    if (null != vboxControl) {
-      if (vboxControl.isConnected()) {
-        return vboxControl;
-      }
-      log.logInfo("Lost connection to " + host.getUrl() + ", reconnecting");
-      vboxControls.remove(host.toString()); // force a reconnect
+  private synchronized static <T> T executeWithVboxControl(VirtualBoxCloud host, VBoxControlCallback<T> vBoxControlCallback) {
+    VirtualBoxControl vboxControl = getVboxControl(host);
+    try {
+      return vBoxControlCallback.doWithVboxControl(vboxControl);
+    } finally {
+      vboxControl.disconnect();
     }
-    vboxControl = createVboxControl(host, log);
-
-    vboxControls.put(host.toString(), vboxControl);
-    return vboxControl;
   }
 
-  private static VirtualBoxControl createVboxControl(VirtualBoxCloud host, VirtualBoxLogger log) {
+  private static VirtualBoxControl getVboxControl(VirtualBoxCloud host) {
+    return createVboxControl(host);
+  }
+
+  private static VirtualBoxControl createVboxControl(VirtualBoxCloud host) {
     VirtualBoxControl vboxControl = null;
 
-    log.logInfo("Trying to connect to " + host.getUrl() + ", user " + host.getUsername());
+    logInfo("Trying to connect to " + host.getUrl() + ", user " + host.getUsername());
     String version = null;
 
     try {
@@ -96,11 +106,12 @@ public final class VirtualBoxUtils {
     } else if (version.startsWith("3.")) {
       vboxControl = new VirtualBoxControlV31(host.getUrl(), host.getUsername(), host.getPassword());
     } else {
-      log.logError("VirtualBox version " + version + " not supported.");
+      logError("VirtualBox version " + version + " not supported.");
       throw new UnsupportedOperationException("VirtualBox version " + version + " not supported.");
     }
 
-    log.logInfo("Connected to VirtualBox version " + version + " on host " + host.getUrl());
+    logInfo("Connected to VirtualBox version " + version + " on host " + host.getUrl());
     return vboxControl;
   }
+
 }
