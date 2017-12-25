@@ -78,7 +78,10 @@ public final class VirtualBoxUtils {
     }
 
     log.logInfo("Creating connection to VirtualBox version " + version);
-    if (version.startsWith("5.1")) {
+    if (false) {
+    } else if (version.startsWith("5.2")) {
+      vboxControl = new VirtualBoxControlV52(host.getUrl(), host.getUsername(), host.getPassword());
+    } else if (version.startsWith("5.1")) {
       vboxControl = new VirtualBoxControlV51(host.getUrl(), host.getUsername(), host.getPassword());
     } else if (version.startsWith("5.0")) {
       vboxControl = new VirtualBoxControlV50(host.getUrl(), host.getUsername(), host.getPassword());
