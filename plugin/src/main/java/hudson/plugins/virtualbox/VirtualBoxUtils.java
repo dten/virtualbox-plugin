@@ -87,7 +87,7 @@ public final class VirtualBoxUtils {
       manager.disconnect(vbox);
     }
 
-    log.logInfo("Creating connection to VirtualBox version " + version);
+    logInfo("Creating connection to VirtualBox version " + version);
     if (false) {
     } else if (version.startsWith("5.2")) {
       vboxControl = new VirtualBoxControlV52(host.getUrl(), host.getUsername(), host.getPassword());
